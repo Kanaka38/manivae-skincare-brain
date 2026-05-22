@@ -8,7 +8,7 @@ app.use(cors());
 app.use(express.json());
 
 // Initialize connection safely to your live Supabase database instance
-const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY);
+const supabase = createClient("https://aolrjwfcsppyxbctrdvk.supabase.co", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFvbHJqd2Zjc3BweXhiY3RyZHZrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk0MzcwMjUsImV4cCI6MjA5NTAxMzAyNX0.NSFI1UI5JIsqm2nssuXeOxzRrmTBsdEw1Gk6kqghzCY");
 
 // Master Biochemical Safety Conflict Matrix Registry
 const CORE_BIO_CONFLICT_REGISTRY = {
@@ -35,32 +35,32 @@ app.post('/api/recommendations', async (req, res) => {
     let activeClashDetected = false;
 
     // Process every single product row through your multi-dimensional vector formulas
-    inventory.forEach(item => {
-      // 1. Financial Bracket Matching Constraint Check
-      if (item.price_tier !== priceTier) return;
+// Process every single product row through your formulas
+inventory.forEach(item => {
+  if (item.price_tier !== priceTier) return;
 
-      let score = 0;
+  let score = 0;
+  if (item.target_skin === skin) score += 50;
+  else if (item.target_skin === 'all') score += 25;
+  else score -= 30;
 
-      // 2. Base Skin Physiology Affinity Vector Accumulator
-      if (item.target_skin === skin) score += 50;
-      else if (item.target_skin === 'all') score += 25;
-      else score -= 30;
+  // Safe check to ensure target_concerns exists before searching it
+  if (item.target_concerns && Array.isArray(item.target_concerns)) {
+    if (item.target_concerns.includes(concern)) {
+      score += 50;
+    }
+  }
 
-      // 3. Multi-Concern Checklist Matrix Evaluation
-      if (item.target_concerns && item.target_concerns.includes(concern)) {
-        score += 50;
-      }
+  item.runningScore = score;
 
-      item.runningScore = score;
-
-      if (score > 0) {
-        if (item.stock_status === "out_of_stock") {
-          autopilotFailsafeTriggered = true;
-          return; // Drop out-of-stock items immediately to protect conversion rates
-        }
-        validCandidatesList.push(item);
-      }
-    });
+  if (score > 0) {
+    if (item.stock_status === "out_of_stock") {
+      autopilotFailsafeTriggered = true;
+      return;
+    }
+    validCandidatesList.push(item);
+  }
+});
 
     // Sort valid items cleanly by maximum weight values
     validCandidatesList.sort((a, b) => b.runningScore - a.runningScore);
