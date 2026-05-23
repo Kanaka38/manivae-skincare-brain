@@ -4,19 +4,29 @@ const { createClient } = require('@supabase/supabase-js');
 
 const app = express();
 
-// Force open global CORS access to prevent any Shopify browser restrictions
 app.use(cors({
   origin: '*',
   methods: ['POST', 'GET', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  allowedHeaders: ['Content-Type', 'Authorization', 'apikey', 'x-client-info']
 }));
 app.use(express.json());
 
 const SUPABASE_URL = "https://aolrjwfcsppyxbctrdvk.supabase.co";
-// Ensure this entire long string below has absolutely no spaces inside the quotes
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFvbHJqd2Zjc3BweXhiY3RyZHZrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk0MzcwMjUsImV4cCI6MjA5NTAxMzAyNX0.NSFI1UI5JIsqm2nssuXeOxzRrmTBsdEw1Gk6kqghzCY";
 
-const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+// Define strict global connection parameter headers explicitly
+const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
+  auth: {
+    persistSession: false,
+    autoRefreshToken: false
+  },
+  global: {
+    headers: {
+      'apikey': SUPABASE_KEY,
+      'Authorization': `Bearer ${SUPABASE_KEY}`
+    }
+  }
+});
 
 app.post('/api/recommendations', async (req, res) => {
   try {
@@ -25,7 +35,7 @@ app.post('/api/recommendations', async (req, res) => {
       .select('*');
 
     if (dbError) {
-      return res.status(500).json({ error: "Supabase connection error: " + dbError.message });
+      return res.status(500).json({ error: "Database Link Refusal: " + dbError.message });
     }
 
     const processedProducts = inventory.map(item => {
@@ -41,12 +51,11 @@ app.post('/api/recommendations', async (req, res) => {
     });
 
   } catch (err) {
-    return res.status(500).json({ error: "Runtime exception: " + err.message });
+    return res.status(500).json({ error: "Runtime processing error: " + err.message });
   }
 });
 
-// Explicit handle for preflight OPTIONS requests from Shopify frames
 app.options('*', cors());
 
 const PORT = process.env.PORT || 8080;
-app.listen(PORT, () => console.log(`Server running.`));
+app.listen(PORT, () => console.log(`Gateway Online.`));
