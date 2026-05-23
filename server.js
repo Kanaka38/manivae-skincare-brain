@@ -4,7 +4,6 @@ const { createClient } = require('@supabase/supabase-js');
 
 const app = express();
 
-// Global CORS configurations for absolute cross-domain permission
 app.use(cors({
   origin: '*',
   methods: ['POST', 'GET', 'OPTIONS'],
@@ -12,16 +11,16 @@ app.use(cors({
 }));
 app.use(express.json());
 
-// Root test route handler
+// Main entry verification route
 app.get('/', (req, res) => {
   res.send("🚀 Manivae Skincare Brain Server is Running Live!");
 });
 
-// Direct pipeline linking your Vercel panel values straight to Supabase
-const supabase = createClient(
-  process.env.SUPABASE_URL || "https://aolrjwfcsppyxbctrdvk.supabase.co",
-  process.env.SUPABASE_KEY
-);
+const SUPABASE_URL = "https://aolrjwfcsppyxbctrdvk.supabase.co";
+// Hardcoding the active token string directly to guarantee it is read on startup
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFvbHJqd2Zjc3BweXhiY3RyZHZrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3OTQzNzAyNSwiZXhwIjoyMDk1MDEzMDI1fQ.OtrjdAAeY_pkPlseeygrJNx1yJVle_Er32I5GSlOnYw";
+
+const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 app.post('/api/recommendations', async (req, res) => {
   try {
@@ -49,5 +48,4 @@ app.post('/api/recommendations', async (req, res) => {
 
 app.options('*', cors());
 
-// Export the app architecture framework to Vercel's serverless engine directly
 module.exports = app;
