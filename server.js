@@ -4,6 +4,7 @@ const { createClient } = require('@supabase/supabase-js');
 
 const app = express();
 
+// Global CORS configurations for absolute cross-domain permission
 app.use(cors({
   origin: '*',
   methods: ['POST', 'GET', 'OPTIONS'],
@@ -11,11 +12,12 @@ app.use(cors({
 }));
 app.use(express.json());
 
+// Root test route handler
 app.get('/', (req, res) => {
   res.send("🚀 Manivae Skincare Brain Server is Running Live!");
 });
 
-// Clean, variable-driven connection configuration
+// Direct pipeline linking your Vercel panel values straight to Supabase
 const supabase = createClient(
   process.env.SUPABASE_URL || "https://aolrjwfcsppyxbctrdvk.supabase.co",
   process.env.SUPABASE_KEY
@@ -47,5 +49,5 @@ app.post('/api/recommendations', async (req, res) => {
 
 app.options('*', cors());
 
-const PORT = process.env.PORT || 8080;
-app.listen(PORT, () => console.log(`Active.`));
+// Export the app architecture framework to Vercel's serverless engine directly
+module.exports = app;
