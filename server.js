@@ -47,3 +47,5 @@ app.post('/api/recommendations', async (req, res) => {
 
 const PORT = process.env.PORT || 8080;
 app.listen(PORT, () => console.log(`Engine running smoothly.`));
+
+      // Live connection verification test check.
