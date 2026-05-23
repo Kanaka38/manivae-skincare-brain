@@ -15,15 +15,11 @@ app.get('/', (req, res) => {
   res.send("🚀 Manivae Skincare Brain Server is Running Live!");
 });
 
-const SUPABASE_URL = "https://aolrjwfcsppyxbctrdvk.supabase.co";
-const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFvbHJqd2Zjc3BweXhiY3RyZHZrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk0MzcwMjUsImV4cCI6MjA5NTAxMzAyNX0.NSFI1UI5JIsqm2nssuXeOxzRrmTBsdEw1Gk6kqghzCY";
-
-// Explicitly declare the public schema location block
-const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
-  db: {
-    schema: 'public'
-  }
-});
+// Clean, variable-driven connection configuration
+const supabase = createClient(
+  process.env.SUPABASE_URL || "https://aolrjwfcsppyxbctrdvk.supabase.co",
+  process.env.SUPABASE_KEY
+);
 
 app.post('/api/recommendations', async (req, res) => {
   try {
