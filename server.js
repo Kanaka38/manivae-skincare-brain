@@ -22,10 +22,8 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 app.post('/api/recommendations', async (req, res) => {
   try {
-    // 1. Ingest the 5 explicit user profile choices from Shopify
     const { skin_type, concern, sensitivity, climate, price_tier } = req.body;
 
-    // 2. Fetch inventory rows from Supabase
     const { data: inventory, error: dbError } = await supabase
       .from('product_taxonomy')
       .select('*');
@@ -34,82 +32,73 @@ app.post('/api/recommendations', async (req, res) => {
       return res.status(500).json({ error: "Database error: " + dbError.message });
     }
 
-    // 3. Run the complete deterministic calculation matrix
     const processedProducts = inventory.map(product => {
       let score = 0;
       let totalWeight = 0;
 
-      // Rule 1: Skin Type Compatibility (Weight: 30 points)
+      // Rule 1: Skin Type Compatibility (Weight: 30)
       totalWeight += 30;
-      if (product.target_skin_types && skin_type) {
-        if (product.target_skin_types.toLowerCase().includes(skin_type.toLowerCase())) {
+      if (skin_type && product.target_skin_types) {
+        const targetSkin = String(product.target_skin_types).toLowerCase();
+        if (targetSkin.includes(skin_type.toLowerCase())) {
           score += 30;
-        } else if (product.target_skin_types.toLowerCase().includes('all')) {
-          score += 20; // Partial match for all-skin-type products
+        } else if (targetSkin.includes('all')) {
+          score += 20;
         }
       }
 
-      // Rule 2: Primary Skin Concern Alignment (Weight: 30 points)
+      // Rule 2: Skin Concern Alignment (Weight: 30)
       totalWeight += 30;
-      if (product.target_concerns && concern) {
-        if (product.target_concerns.toLowerCase().includes(concern.toLowerCase())) {
+      if (concern && product.target_concerns) {
+        if (String(product.target_concerns).toLowerCase().includes(concern.toLowerCase())) {
           score += 30;
         }
       }
 
-      // Rule 3: Barrier Sensitivity Threshold Guardrails (Weight: 15 points)
+      // Rule 3: Barrier Sensitivity Threshold Guardrails (Weight: 15)
       totalWeight += 15;
-      if (sensitivity && sensitivity.toLowerCase().includes('highly sensitive')) {
-        // If user is sensitive, product must be explicitly safe for sensitive skin
-        if (product.is_sensitive_safe && (product.is_sensitive_safe === true || product.is_sensitive_safe === 'true')) {
+      if (sensitivity && String(sensitivity).toLowerCase().includes('highly sensitive')) {
+        if (product.is_sensitive_safe === true || String(product.is_sensitive_safe).toLowerCase() === 'true') {
           score += 15;
         } else {
-          score -= 10; // Penalty for harsh products on sensitive skin
+          score -= 10;
         }
       } else {
-        score += 15; // Resilient standard skin gets base points safely
+        score += 15;
       }
 
-      // Rule 4: Local Regional Climate Optimization (Weight: 15 points)
+      // Rule 4: Local Regional Climate Optimization (Weight: 15)
       totalWeight += 15;
-      if (product.optimized_climates && climate) {
-        if (product.optimized_climates.toLowerCase().includes(climate.toLowerCase()) || product.optimized_climates.toLowerCase().includes('all')) {
+      if (climate && product.optimized_climates) {
+        const targetClimate = String(product.optimized_climates).toLowerCase();
+        if (targetClimate.includes(climate.toLowerCase()) || targetClimate.includes('all')) {
           score += 15;
         }
       } else {
         score += 15;
       }
 
-      // Rule 5: Pricing Tier Filtering Preference (Weight: 10 points)
+      // Rule 5: Pricing Tier Filtering Preference (Weight: 10)
       totalWeight += 10;
-      if (product.price_tier && price_tier) {
-        if (product.price_tier.toLowerCase().includes(price_tier.toLowerCase())) {
+      if (price_tier && product.price_tier) {
+        if (String(product.price_tier).toLowerCase().includes(price_tier.toLowerCase())) {
           score += 10;
         }
       } else {
         score += 10;
       }
 
-      // Normalize score out of 100%
       let finalPercentage = Math.round((score / totalWeight) * 100);
       if (finalPercentage < 0) finalPercentage = 0;
       if (finalPercentage > 100) finalPercentage = 100;
 
-      return {
-        ...product,
-        runningScore: finalPercentage
-      };
+      return { ...product, runningScore: finalPercentage };
     })
-    // Filter out weak matches (< 70%) to maintain a highly premium personalization feel
     .filter(product => product.runningScore >= 70)
-    // Sort highest matching routines right to the top
     .sort((a, b) => b.runningScore - a.runningScore);
 
     return res.json({
-      meta: {
-        engineStatus: "optimized",
-        totalRecommended: processedProducts.length
-      },
+      meta: { engineStatus: "optimized", totalRecommended: processedProducts.length },
       products: processedProducts
     });
 
