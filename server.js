@@ -11,33 +11,62 @@ app.use(cors({
 }));
 app.use(express.json());
 
-// Main entry verification route
 app.get('/', (req, res) => {
   res.send("🚀 Manivae Skincare Brain Server is Running Live!");
 });
 
 const SUPABASE_URL = "https://aolrjwfcsppyxbctrdvk.supabase.co";
-// Hardcoding the active token string directly to guarantee it is read on startup
-const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFvbHJqd2Zjc3BweXhiY3RyZHZrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3OTQzNzAyNSwiZXhwIjoyMDk1MDEzMDI1fQ.OtrjdAAeY_pkPlseeygrJNx1yJVle_Er32I5GSlOnYw";
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFvbHJqd2Zjc3BweXhiY3RyZHZrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk0MzcwMjUsImV4cCI6MjA5NTAxMzAyNX0.NSFI1UI5JIsqm2nssuXeOxzRrmTBsdEw1Gk6kqghzCY";
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 app.post('/api/recommendations', async (req, res) => {
   try {
+    // 1. Grab user profile answers from Shopify request body
+    const { skin_type, primary_concern } = req.body;
+
+    // 2. Fetch inventory rows from Supabase
     const { data: inventory, error: dbError } = await supabase
       .from('product_taxonomy')
       .select('*');
 
     if (dbError) {
-      return res.status(500).json({ error: "Supabase connection error: " + dbError.message });
+      return res.status(500).json({ error: "Database error: " + dbError.message });
     }
 
-    const processedProducts = inventory.map(item => {
-      return { ...item, runningScore: 95 };
-    });
+    // 3. Simple, fast deterministic scoring engine
+    const processedProducts = inventory.map(product => {
+      let score = 50; // Base score
+
+      // Check skin type compatibility (assuming comma-separated string in DB, e.g., "Oily, Combination")
+      if (product.target_skin_types && skin_type) {
+        if (product.target_skin_types.toLowerCase().includes(skin_type.toLowerCase())) {
+          score += 25;
+        }
+      }
+
+      // Check primary concern compatibility
+      if (product.target_concerns && primary_concern) {
+        if (product.target_concerns.toLowerCase().includes(primary_concern.toLowerCase())) {
+          score += 25;
+        }
+      }
+
+      return {
+        ...product,
+        runningScore: score
+      };
+    })
+    // Filter out low matches to keep recommendations premium
+    .filter(product => product.runningScore >= 75)
+    // Sort highest match percentage first
+    .sort((a, b) => b.runningScore - a.runningScore);
 
     return res.json({
-      meta: { clashShieldActive: false, stockAutopilotTriggered: false },
+      meta: {
+        engineStatus: "optimized",
+        totalRecommended: processedProducts.length
+      },
       products: processedProducts
     });
 
