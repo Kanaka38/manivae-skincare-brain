@@ -18,7 +18,6 @@ app.get('/', (req, res) => {
 const SUPABASE_URL = "https://aolrjwfcsppyxbctrdvk.supabase.co";
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFvbHJqd2Zjc3BweXhiY3RyZHZrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3OTQzNzAyNSwiZXhwIjoyMDk1MDEzMDI1fQ.OtrjdAAeY_pkPlseeygrJNx1yJVle_Er32I5GSlOnYw";
 
-// FIX: Explicitly configure the client to handle administrative bypass security settings
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
   auth: {
     persistSession: false,
@@ -28,7 +27,12 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
 
 app.post('/api/recommendations', async (req, res) => {
   try {
-    const { skin_type, concern, sensitivity, climate, price_tier } = req.body;
+    // Fallback assignment to catch missing keys safely
+    const skin_type = req.body.skin_type || "";
+    const concern = req.body.concern || "";
+    const sensitivity = req.body.sensitivity || "";
+    const climate = req.body.climate || "";
+    const price_tier = req.body.price_tier || "";
 
     const { data: inventory, error: dbError } = await supabase
       .from('product_taxonomy')
@@ -39,84 +43,74 @@ app.post('/api/recommendations', async (req, res) => {
     }
 
     const processedProducts = inventory.map(product => {
-      let score = 0;
-      let totalWeight = 0;
+      let score = 50; // Use a healthy baseline starting score
 
-      // Rule 1: Skin Type Compatibility (Weight: 30)
-      totalWeight += 30;
+      // Safe Skin Type Check
       if (skin_type && product.target_skin_types) {
-        const targetSkin = String(product.target_skin_types).toLowerCase();
-        if (targetSkin.includes(skin_type.toLowerCase())) {
-          score += 30;
-        } else if (targetSkin.includes('all')) {
-          score += 20;
+        const pSkin = String(product.target_skin_types).toLowerCase();
+        if (pSkin.includes(skin_type.toLowerCase()) || pSkin.includes('all')) {
+          score += 15;
         }
       }
 
-      // Rule 2: Skin Concern Alignment (Weight: 30)
-      totalWeight += 30;
+      // Safe Concern Check
       if (concern && product.target_concerns) {
         if (String(product.target_concerns).toLowerCase().includes(concern.toLowerCase())) {
-          score += 30;
+          score += 15;
         }
       }
 
-      // Rule 3: Barrier Sensitivity Threshold Guardrails (Weight: 15)
-      totalWeight += 15;
+      // Safe Sensitivity Check
       if (sensitivity && String(sensitivity).toLowerCase().includes('highly sensitive')) {
-        if (product.is_sensitive_safe === true || String(product.is_sensitive_safe).toLowerCase() === 'true') {
-          score += 15;
+        const isSafe = product.is_sensitive_safe;
+        if (isSafe === true || String(isSafe).toLowerCase() === 'true') {
+          score += 10;
         } else {
           score -= 10;
-        }
-      } else {
-        score += 15;
-      }
-
-      // Rule 4: Local Regional Climate Optimization (Weight: 15)
-      totalWeight += 15;
-      if (climate && product.optimized_climates) {
-        const targetClimate = String(product.optimized_climates).toLowerCase();
-        if (targetClimate.includes(climate.toLowerCase()) || targetClimate.includes('all')) {
-          score += 15;
-        }
-      } else {
-        score += 15;
-      }
-
-      // Rule 5: Pricing Tier Filtering Preference (Weight: 10)
-      totalWeight += 10;
-      if (price_tier && product.price_tier) {
-        if (String(product.price_tier).toLowerCase().includes(price_tier.toLowerCase())) {
-          score += 10;
         }
       } else {
         score += 10;
       }
 
-      let finalPercentage = Math.round((score / totalWeight) * 100);
-      if (finalPercentage < 0) finalPercentage = 0;
-      if (finalPercentage > 100) finalPercentage = 100;
+      // Safe Climate Check
+      if (climate && product.optimized_climates) {
+        const pClimate = String(product.optimized_climates).toLowerCase();
+        if (pClimate.includes(climate.toLowerCase()) || pClimate.includes('all')) {
+          score += 5;
+        }
+      } else {
+        score += 5;
+      }
 
-      return { ...product, runningScore: finalPercentage };
+      // Safe Pricing Tier Check
+      if (price_tier && product.price_tier) {
+        if (String(product.price_tier).toLowerCase().includes(price_tier.toLowerCase())) {
+          score += 5;
+        }
+      } else {
+        score += 5;
+      }
+
+      if (score > 100) score = 100;
+      if (score < 0) score = 0;
+
+      return { ...product, runningScore: score };
     })
-    .filter(product => product.runningScore >= 70)
+    .filter(product => product.runningScore >= 60)
     .sort((a, b) => b.runningScore - a.runningScore);
 
     return res.json({
-      meta: { engineStatus: "optimized", totalRecommended: processedProducts.length },
+      meta: { stockAutopilotTriggered: false, clashShieldActive: false },
       products: processedProducts
     });
 
   } catch (err) {
-    return res.status(500).json({ error: "Runtime processing error: " + err.message });
+    return res.status(500).json({ error: "Processing runtime break: " + err.message });
   }
 });
 
 app.use((req, res) => {
   res.status(404).json({ error: "Route not found" });
 });
-
-app.options('*', cors());
 
 module.exports = app;
