@@ -18,7 +18,13 @@ app.get('/', (req, res) => {
 const SUPABASE_URL = "https://aolrjwfcsppyxbctrdvk.supabase.co";
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFvbHJqd2Zjc3BweXhiY3RyZHZrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3OTQzNzAyNSwiZXhwIjoyMDk1MDEzMDI1fQ.OtrjdAAeY_pkPlseeygrJNx1yJVle_Er32I5GSlOnYw";
 
-const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+// FIX: Explicitly configure the client to handle administrative bypass security settings
+const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
+  auth: {
+    persistSession: false,
+    autoRefreshToken: false
+  }
+});
 
 app.post('/api/recommendations', async (req, res) => {
   try {
@@ -105,6 +111,10 @@ app.post('/api/recommendations', async (req, res) => {
   } catch (err) {
     return res.status(500).json({ error: "Runtime processing error: " + err.message });
   }
+});
+
+app.use((req, res) => {
+  res.status(404).json({ error: "Route not found" });
 });
 
 app.options('*', cors());
